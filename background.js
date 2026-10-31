@@ -15,7 +15,7 @@ const allowedWork = url => {
   } catch (_) { return false; }
 };
 function episodeUrl(partId) {
-  return `https://animestore.docomo.ne.jp/animestore/cd_pc?partId=${partId}`;
+  return `https://animestore.docomo.ne.jp/animestore/sc_d_pc?partId=${partId}`;
 }
 async function getJob() { return (await chrome.storage.session.get(STORE))[STORE] || null; }
 async function putJob(job) {
@@ -90,7 +90,7 @@ async function currentEpisodeForSender(sender) {
     const main = new URL(tab.url || '');
     // A frame's URL may differ from the player URL, but the top-level tab must be the intended episode.
     if (main.origin !== 'https://animestore.docomo.ne.jp' ||
-        main.pathname !== '/animestore/cd_pc' || main.searchParams.get('partId') !== expected.partId) return null;
+        main.pathname !== '/animestore/sc_d_pc' || main.searchParams.get('partId') !== expected.partId) return null;
   } catch (_) { return null; }
   return job;
 }
@@ -126,7 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       } else {
         const { playedSeconds, position, mediaDuration } = message;
         if (![playedSeconds, position, mediaDuration].every(Number.isFinite) || mediaDuration <= 0 ||
-            playedSeconds < Math.min(10, mediaDuration / 2) || position < mediaDuration - 1 ||
+            playedSeconds < Math.min(0.5, mediaDuration / 2) || position < Math.max(0, mediaDuration - 5) ||
             position > mediaDuration + 1) return { ok: false, error: '終盤の再生を確認できません。' };
         await advance(job);
       }

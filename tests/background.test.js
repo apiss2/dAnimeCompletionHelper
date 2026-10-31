@@ -36,7 +36,7 @@ function setup() {
   return { send, tabs, store };
 }
 const workTab = { id: 10, url: 'https://animestore.docomo.ne.jp/animestore/ci_pc?workId=28572' };
-const url = id => `https://animestore.docomo.ne.jp/animestore/cd_pc?partId=${id}`;
+const url = id => `https://animestore.docomo.ne.jp/animestore/sc_d_pc?partId=${id}`;
 const items = [
   { number: 1, partId: '28572001', url: url('28572001') },
   { number: 2, partId: '28572002', url: url('28572002') }
@@ -48,27 +48,29 @@ test('順に再生を完了し、対象外のタブからの完了報告を拒�
   const playerTab = await app.tabs.get(response.job.tabId);
   assert.equal(playerTab.url, items[0].url);
   assert.equal((await app.send({ type: 'GET_ACTIVE_EPISODE' }, playerTab)).episode.partId, '28572001');
-  const rejected = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, workTab);
+  const rejected = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 0.5, position: 1435.5, mediaDuration: 1440 }, workTab);
   assert.equal(rejected.ok, false);
-  const tooShort = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 2, position: 1439, mediaDuration: 1440 }, playerTab);
+  const tooShort = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 0.49, position: 1435.5, mediaDuration: 1440 }, playerTab);
   assert.equal(tooShort.ok, false);
   for (const proof of [
-    { playedSeconds: 29, position: 29, mediaDuration: 1440 },
-    { playedSeconds: 29, position: 1439 },
-    { playedSeconds: NaN, position: 1439, mediaDuration: 1440 }
+    { playedSeconds: 0.5, position: 29, mediaDuration: 1440 },
+    { playedSeconds: 0.5, position: 1435.5 },
+    { playedSeconds: NaN, position: 1435.5, mediaDuration: 1440 }
   ]) {
     assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572001', ...proof }, playerTab)).ok, false);
   }
-  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, playerTab)).ok, true);
+  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 0.5, position: 1435.5, mediaDuration: 1440 }, playerTab)).ok, true);
   assert.equal((await app.tabs.get(playerTab.id)).url, items[1].url);
-  const stale = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, playerTab);
+  const stale = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 0.5, position: 1435.5, mediaDuration: 1440 }, playerTab);
   assert.equal(stale.ok, false);
-  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572002', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, playerTab)).ok, true);
+  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572002', playedSeconds: 0.5, position: 1435.5, mediaDuration: 1440 }, playerTab)).ok, true);
   assert.equal((await app.send({ type: 'GET_STATUS' }, workTab)).job.status, 'done');
 });
 test('不正な外部 URL と重複話数を拒否', async () => {
   const app = setup();
   const badUrl = [{ number: 1, partId: '28572001', url: 'https://example.org/' }];
   assert.equal((await app.send({ type: 'START_JOB', workId: '28572', items: badUrl }, workTab)).ok, false);
+  const dialogUrl = [{ ...items[0], url: 'https://animestore.docomo.ne.jp/animestore/cd_pc?partId=28572001' }];
+  assert.equal((await app.send({ type: 'START_JOB', workId: '28572', items: dialogUrl }, workTab)).ok, false);
   assert.equal((await app.send({ type: 'START_JOB', workId: '28572', items: [items[0], items[0]] }, workTab)).ok, false);
 });

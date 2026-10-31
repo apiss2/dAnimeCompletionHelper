@@ -1,7 +1,7 @@
 /* Looks for actual HTML5 playback. It does NOT forge any watch-history requests. */
 (() => {
   'use strict';
-  if (self === top && location.pathname !== '/animestore/cd_pc') return;
+  if (self === top && location.pathname !== '/animestore/sc_d_pc') return;
   if (globalThis.__dAnimeCompletionHelperMediaScript) return;
   globalThis.__dAnimeCompletionHelperMediaScript = true;
   let episode = null;
@@ -43,7 +43,7 @@
     lastTime = position;
     lastClock = now;
     status(`終盤を再生中（残り${Math.ceil(Math.max(0, video.duration - position))}秒）`);
-    if ((video.ended || position >= video.duration - 1) && measured >= Math.min(10, video.duration / 2)) {
+    if (position >= Math.max(0, video.duration - 5) && measured >= Math.min(0.5, video.duration / 2)) {
       completed = true;
       video.pause();
       chrome.runtime.sendMessage({ type: 'PLAYER_DONE', partId: episode.partId,
@@ -85,7 +85,7 @@
         if (!Number.isFinite(video.duration) || video.duration <= 0 || video.readyState < 1) {
           await tryPlay(); status('動画の長さを確認中'); return;
         }
-        video.currentTime = Math.max(0, video.duration - 30);
+        video.currentTime = Math.max(0, video.duration - 5);
         tailPrepared = true; lastTime = null;
       }
       if (video.paused) {
@@ -101,5 +101,5 @@
   const timer = setInterval(() => {
     if (completed) { clearInterval(timer); return; }
     tick();
-  }, 1000);
+  }, 100);
 })();
