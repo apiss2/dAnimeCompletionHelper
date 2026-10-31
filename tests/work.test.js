@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const helpers = require('../episode-list.js');
 
-async function setup(fixtures) {
+async function setup(fixtures, compact = false) {
   class Element {
     constructor(tag) { this.tag = tag; this.children = []; this.events = {}; this.attributes = {}; this.classList = { toggle() {} }; }
     append(...children) { this.children.push(...children); }
@@ -25,15 +25,20 @@ async function setup(fixtures) {
     querySelector(selector) { return { textContent: selector === '.number' ? item.number : item.title }; }
   }));
   let root;
+  let placement;
+  const windowEvents = {};
+  const compactRow = { after(node) { root = node; placement = 'after-information-row'; } };
+  const countRow = { after(node) { root = node; placement = 'after-count-row'; } };
   const messages = [];
   const context = {
     URL, location: { href: 'https://animestore.docomo.ne.jp/animestore/ci_pc?workId=28572' },
-    DAnimeEpisodes: helpers, window: { addEventListener() {} },
+    DAnimeEpisodes: helpers, window: { addEventListener(name, fn) { windowEvents[name] = fn; } },
     document: {
       getElementById() { return null; }, createElement: tag => new Element(tag),
       querySelectorAll(selector) {
         if (selector === '.episodeContainer a[href*="cd_pc"]') return anchors;
-        if (selector === '.favoriteCount') return [{ getClientRects: () => [1], parentElement: { after(node) { root = node; } } }];
+        if (selector === '.favoriteCount') return [{ getClientRects: () => [1], parentElement: countRow,
+          closest: selector => compact && selector === '.titleInformationWrap' ? compactRow : null }];
         return [];
       }
     },
@@ -48,11 +53,25 @@ async function setup(fixtures) {
   await new Promise(resolve => setImmediate(resolve));
   function all(node) { return [node, ...node.children.flatMap(all)]; }
   const elements = all(root.shadow);
-  return { messages, selects: elements.filter(e => e.tag === 'select'),
+  return { messages, get placement() { return placement; },
+    resize(value) { compact = value; windowEvents.resize(); },
+    selects: elements.filter(e => e.tag === 'select'),
     launcher: elements.find(e => e.tag === 'button' && e.textContent === 'まとめて視聴済み登録'),
     start: elements.find(e => e.tag === 'button' && e.textContent === '登録'),
     status: elements.find(e => e.className === 'status') };
 }
+
+test('狭幅では横並びの情報行の外へ配置し、広幅では登録数の下へ配置する', async () => {
+  const app = await setup(undefined, true);
+  assert.equal(app.placement, 'after-information-row');
+  app.selects[0].value = '2';
+  app.resize(false);
+  assert.equal(app.placement, 'after-count-row');
+  app.resize(true);
+  assert.equal(app.placement, 'after-information-row');
+  assert.equal(app.selects[0].value, '2');
+  assert.equal((await setup()).placement, 'after-count-row');
+});
 
 test('第25〜29話の一覧を開くと開始は第25話、終了は第29話が初期選択される', async () => {
   const fixtures = Array.from({ length: 5 }, (_, index) => ({

@@ -22,10 +22,10 @@
   const shadow = root.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
   style.textContent = `
-  :host { all: initial; display:block; margin-top:4px; font: 12px/1.5 -apple-system,BlinkMacSystemFont,"Yu Gothic",Meiryo,sans-serif; color:#333; text-align:right; }
+  :host { all: initial; display:block; min-width:0; max-width:100%; margin-top:4px; font: 12px/1.5 -apple-system,BlinkMacSystemFont,"Yu Gothic",Meiryo,sans-serif; color:#333; text-align:right; }
   * { box-sizing: border-box; }
   .launcher { background:#fff8df; color:#594300; border:1px solid #c7a340;
-    border-radius:3px; font-size:12px; font-weight:600; padding:6px 12px; }
+    max-width:100%; border-radius:3px; font-size:12px; font-weight:600; padding:6px 12px; }
   .launcher:hover { background:#ffefb3; border-color:#9b7400; }
   .launcher:focus-visible { outline:2px solid #9b7400; outline-offset:2px; }
   .panel { width:100%; max-width:320px; margin:4px 0 0 auto; padding:10px;
@@ -86,7 +86,8 @@
   function placeRoot() {
     const counts = [...document.querySelectorAll('.favoriteCount')];
     const anchor = counts.find(e => e.getClientRects().length) || counts[0];
-    if (anchor) anchor.parentElement.after(root);
+    // The compact layout's information row is a non-wrapping flex container.
+    if (anchor) (anchor.closest('.titleInformationWrap') || anchor.parentElement).after(root);
     else document.querySelector('h1')?.after(root);
   }
   placeRoot();
