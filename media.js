@@ -14,6 +14,7 @@
   let completed = false;
   let playError = '';
   let checking = false;
+  let tailPrepared = false;
 
   function findVideos(root) {
     const found = [...root.querySelectorAll('video')];
@@ -28,7 +29,7 @@
     chrome.runtime.sendMessage({ type: 'PLAYER_PROGRESS', partId: episode.partId, progress: text }).catch(() => {});
   }
   function monitorPlayback() {
-    if (!episode || completed || !video) return;
+    if (!episode || completed || !video || !tailPrepared) return;
     const now = performance.now();
     const position = video.currentTime;
     if (lastTime !== null && !video.paused && !video.seeking && video.readyState >= 2 && Number.isFinite(position)) {
@@ -41,10 +42,14 @@
     }
     lastTime = position;
     lastClock = now;
-    status(`再生中 ${Math.floor(measured)} / ${episode.duration} 秒`);
-    if (measured >= episode.duration) {
+    status(`終盤を再生中（残り${Math.ceil(Math.max(0, video.duration - position))}秒）`);
+    if ((video.ended || position >= video.duration - 1) && measured >= Math.min(10, video.duration / 2)) {
       completed = true;
-      chrome.runtime.sendMessage({ type: 'PLAYER_DONE', partId: episode.partId, playedSeconds: measured }).catch(() => {});
+      video.pause();
+      chrome.runtime.sendMessage({ type: 'PLAYER_DONE', partId: episode.partId,
+        playedSeconds: measured, position, mediaDuration: video.duration }).then(response => {
+        if (!response?.ok) { completed = false; status(response?.error || '完了を確認できません'); }
+      }).catch(() => { completed = false; });
     }
   }
   async function tryPlay() {
@@ -72,9 +77,17 @@
         const candidates = findVideos(document).filter(v => v instanceof HTMLVideoElement);
         video = candidates.find(v => v.readyState > 0) || candidates[0] || null;
         lastTime = null;
+        tailPrepared = false; measured = 0; activated = false;
         if (video) video.addEventListener('timeupdate', monitorPlayback);
       }
       if (!video) { status('動画プレーヤーを探索中'); return; }
+      if (!tailPrepared) {
+        if (!Number.isFinite(video.duration) || video.duration <= 0 || video.readyState < 1) {
+          await tryPlay(); status('動画の長さを確認中'); return;
+        }
+        video.currentTime = Math.max(0, video.duration - 30);
+        tailPrepared = true; lastTime = null;
+      }
       if (video.paused) {
         await tryPlay();
         status(playError || '再生開始を確認中');

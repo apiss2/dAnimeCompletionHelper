@@ -20,44 +20,32 @@
   const shadow = root.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
   style.textContent = `
-  :host { all: initial; font: 14px/1.5 -apple-system,BlinkMacSystemFont,"Yu Gothic",Meiryo,sans-serif; color: #20242b; }
+  :host { all: initial; display:block; margin-top:4px; font: 12px/1.5 -apple-system,BlinkMacSystemFont,"Yu Gothic",Meiryo,sans-serif; color:#333; text-align:right; }
   * { box-sizing: border-box; }
-  .panel { position: fixed; z-index: 2147483646; bottom: 20px; right: 22px; width: 328px;
-    max-width: calc(100vw - 24px); padding: 17px; background: #fff; border: 1px solid #d7dee7;
-    box-shadow: 0 9px 30px #1d335b33; border-radius: 13px; }
-  .heading { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:15px; font-weight:700; }
-  .subtitle { font-size:12px; color:#637084; margin: 6px 0 12px; }
+  .launcher { background:#fff8df; color:#594300; border:1px solid #c7a340;
+    border-radius:3px; font-size:12px; font-weight:600; padding:6px 12px; }
+  .launcher:hover { background:#ffefb3; border-color:#9b7400; }
+  .launcher:focus-visible { outline:2px solid #9b7400; outline-offset:2px; }
+  .panel { width:100%; max-width:320px; margin:4px 0 0 auto; padding:10px;
+    text-align:left; background:#fafafa; border:1px solid #e5e5e5; border-radius:3px; }
   .line { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
   label { flex:1; font-size:12px; font-weight:600; }
   input { display:block; width:100%; padding:7px; margin-top:3px; border:1px solid #b8c4d1;
     border-radius:7px; font:inherit; background:#fff; color:#222; }
   button { cursor:pointer; padding: 9px 12px; border:0; border-radius:8px; font:inherit; font-weight:600; }
   button:disabled { opacity:0.5; cursor:not-allowed; }
-  .primary { background:#2457ad; color:white; flex:1; }
+  .primary { background:#f5b900; color:#333; flex:1; }
   .stop { background:#f1f3f5; color:#333; }
   .controls { display:flex; gap:8px; }
-  .hint { margin:10px 0 0; font-size:11px; color:#69778b; line-height:1.6; }
   .status { font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere;
     border-radius:8px; background:#f2f6fc; padding:10px; margin-bottom:10px; }
   .error { color:#a32628; }
-  .tiny { padding:2px 8px; background:transparent; color:#526076; }
   [hidden] { display:none !important; }
   `;
   shadow.appendChild(style);
   const panel = document.createElement('section');
   panel.className = 'panel';
-  const heading = document.createElement('div');
-  heading.className = 'heading';
-  const headingText = document.createElement('span');
-  headingText.textContent = 'dAnimeCompletionHelper';
-  const toggle = document.createElement('button');
-  toggle.className = 'tiny';
-  toggle.textContent = '閉じる';
-  heading.append(headingText, toggle);
   const inner = document.createElement('div');
-  const subtitle = document.createElement('p');
-  subtitle.className = 'subtitle';
-  subtitle.textContent = `${title}｜検出 ${episodes.length} 話`;
   const fields = document.createElement('div');
   fields.className = 'line';
   function field(labelText, value, min, max) {
@@ -72,33 +60,42 @@
   const from = field('開始話', episodes[0].number, 1, 9999);
   const to = field('終了話', episodes[episodes.length - 1].number, 1, 9999);
   fields.append(from.label, to.label);
-  const secondsRow = document.createElement('div');
-  secondsRow.className = 'line';
-  const seconds = field('各話の再生秒数（実再生）', 15, 5, 60);
-  secondsRow.append(seconds.label);
   const status = document.createElement('div');
   status.className = 'status';
-  status.textContent = '開始話と終了話を指定してください。';
+  status.hidden = true;
+  status.setAttribute('role', 'status');
   const controls = document.createElement('div');
   controls.className = 'controls';
   const start = document.createElement('button');
-  start.className = 'primary'; start.textContent = '指定範囲を再生';
+  start.className = 'primary'; start.textContent = '再生';
   const cancel = document.createElement('button');
   cancel.className = 'stop'; cancel.textContent = '停止'; cancel.disabled = true;
   controls.append(start, cancel);
-  const hint = document.createElement('p');
-  hint.className = 'hint';
-  hint.textContent = '別タブで各話を無音再生し、再生進行を確認してから次の話へ移動します。視聴済み登録はサイト側の判定によるため、結果は別途確認してください。';
-  inner.append(subtitle, fields, secondsRow, status, controls, hint);
-  panel.append(heading, inner); shadow.appendChild(panel); document.documentElement.appendChild(root);
+  inner.append(fields, status, controls);
+  const launcher = document.createElement('button');
+  launcher.className = 'launcher'; launcher.textContent = 'まとめて視聴済み登録';
+  launcher.setAttribute('aria-expanded', 'false');
+  panel.append(inner); shadow.append(launcher, panel);
+  function placeRoot() {
+    const counts = [...document.querySelectorAll('.favoriteCount')];
+    const anchor = counts.find(e => e.getClientRects().length) || counts[0];
+    if (anchor) anchor.parentElement.after(root);
+    else document.querySelector('h1')?.after(root);
+  }
+  placeRoot();
+  window.addEventListener('resize', placeRoot);
 
-  let shown = true;
+  let shown = false;
   function setVisible(value) {
     shown = value;
-    inner.hidden = !value;
-    toggle.textContent = value ? '閉じる' : '開く';
+    panel.hidden = !value;
+    launcher.setAttribute('aria-expanded', String(value));
+    if (value) from.input.focus();
+    else launcher.focus();
   }
-  toggle.addEventListener('click', () => setVisible(!shown));
+  panel.hidden = true;
+  launcher.addEventListener('click', () => setVisible(!shown));
+  shadow.addEventListener('keydown', e => { if (e.key === 'Escape') setVisible(false); });
   chrome.runtime.onMessage.addListener(message => {
     if (message.type === 'TOGGLE_PANEL') setVisible(!shown);
     if (message.type === 'JOB_CHANGED') showJob(message.job);
@@ -106,11 +103,12 @@
 
   function showJob(job) {
     if (!job || job.workId !== workId) {
-      status.textContent = '開始話と終了話を指定してください。';
+      status.hidden = true;
       start.disabled = false; cancel.disabled = true;
       return;
     }
     const total = job.items.length;
+    status.hidden = false;
     const num = job.items[job.index]?.number;
     const done = Math.min(job.index, total);
     let line = `${done} / ${total} 話を再生確認済み`;
@@ -122,12 +120,14 @@
     status.classList.toggle('error', job.status === 'error');
     const running = job.status === 'running';
     start.disabled = running; cancel.disabled = !running;
+    from.input.disabled = running; to.input.disabled = running;
   }
   start.addEventListener('click', async () => {
-    const first = Number(from.input.value), last = Number(to.input.value), duration = Number(seconds.input.value);
+    status.hidden = false;
+    const first = Number(from.input.value), last = Number(to.input.value);
     if (!Number.isInteger(first) || !Number.isInteger(last) || first > last ||
-        first < 1 || last > 9999 || !Number.isInteger(duration) || duration < 5 || duration > 60) {
-      status.textContent = '開始話、終了話、再生秒数を正しく指定してください。';
+        first < 1 || last > 9999) {
+      status.textContent = '開始話と終了話を正しく指定してください。';
       return;
     }
     const items = episodes.filter(item => item.number >= first && item.number <= last);
@@ -141,7 +141,7 @@
     start.disabled = true;
     status.textContent = `${items.length}話の処理を開始しています。`;
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'START_JOB', workId, title, items, duration });
+      const response = await chrome.runtime.sendMessage({ type: 'START_JOB', workId, title, items });
       if (!response?.ok) throw new Error(response?.error || '開始できませんでした。');
       showJob(response.job);
     } catch (e) { start.disabled = false; status.textContent = e.message; }

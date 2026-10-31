@@ -43,25 +43,32 @@ const items = [
 ];
 test('順に再生を完了し、対象外のタブからの完了報告を拒否', async () => {
   const app = setup();
-  const response = await app.send({ type: 'START_JOB', workId: '28572', title: '作品', items, duration: 5 }, workTab);
+  const response = await app.send({ type: 'START_JOB', workId: '28572', title: '作品', items }, workTab);
   assert.equal(response.ok, true);
   const playerTab = await app.tabs.get(response.job.tabId);
   assert.equal(playerTab.url, items[0].url);
   assert.equal((await app.send({ type: 'GET_ACTIVE_EPISODE' }, playerTab)).episode.partId, '28572001');
-  const rejected = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 5 }, workTab);
+  const rejected = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, workTab);
   assert.equal(rejected.ok, false);
-  const tooShort = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 2 }, playerTab);
+  const tooShort = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 2, position: 1439, mediaDuration: 1440 }, playerTab);
   assert.equal(tooShort.ok, false);
-  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 5 }, playerTab)).ok, true);
+  for (const proof of [
+    { playedSeconds: 29, position: 29, mediaDuration: 1440 },
+    { playedSeconds: 29, position: 1439 },
+    { playedSeconds: NaN, position: 1439, mediaDuration: 1440 }
+  ]) {
+    assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572001', ...proof }, playerTab)).ok, false);
+  }
+  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, playerTab)).ok, true);
   assert.equal((await app.tabs.get(playerTab.id)).url, items[1].url);
-  const stale = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 5 }, playerTab);
+  const stale = await app.send({ type: 'PLAYER_DONE', partId: '28572001', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, playerTab);
   assert.equal(stale.ok, false);
-  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572002', playedSeconds: 5 }, playerTab)).ok, true);
+  assert.equal((await app.send({ type: 'PLAYER_DONE', partId: '28572002', playedSeconds: 29, position: 1439, mediaDuration: 1440 }, playerTab)).ok, true);
   assert.equal((await app.send({ type: 'GET_STATUS' }, workTab)).job.status, 'done');
 });
 test('不正な外部 URL と重複話数を拒否', async () => {
   const app = setup();
   const badUrl = [{ number: 1, partId: '28572001', url: 'https://example.org/' }];
-  assert.equal((await app.send({ type: 'START_JOB', workId: '28572', items: badUrl, duration: 5 }, workTab)).ok, false);
-  assert.equal((await app.send({ type: 'START_JOB', workId: '28572', items: [items[0], items[0]], duration: 5 }, workTab)).ok, false);
+  assert.equal((await app.send({ type: 'START_JOB', workId: '28572', items: badUrl }, workTab)).ok, false);
+  assert.equal((await app.send({ type: 'START_JOB', workId: '28572', items: [items[0], items[0]] }, workTab)).ok, false);
 });

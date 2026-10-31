@@ -48,7 +48,6 @@ async function createJob(message, sender) {
   if (!sender.tab || !allowedWork(sender.tab.url)) throw new Error('dアニメストアの作品ページで開始してください。');
   const workId = new URL(sender.tab.url).searchParams.get('workId');
   if (workId !== message.workId) throw new Error('作品ページが一致しません。');
-  if (!Number.isInteger(message.duration) || message.duration < 5 || message.duration > 60) throw new Error('再生秒数が不正です。');
   if (!Array.isArray(message.items) || message.items.length < 1 || message.items.length > 300) throw new Error('話数の指定が不正です。');
   const items = [];
   let previous = 0;
@@ -66,7 +65,7 @@ async function createJob(message, sender) {
   if (existing?.status === 'running') throw new Error('別の再生処理が実行中です。');
   const job = {
     workId, title: String(message.title || '').slice(0, 120), items,
-    duration: message.duration, index: 0, status: 'running',
+    index: 0, status: 'running',
     progress: 'ページを読み込み中', error: '', tabId: null, openedAt: Date.now()
   };
   await putJob(job);
@@ -104,7 +103,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     return { ok: true, episode: job ? {
       partId: job.items[job.index].partId,
       number: job.items[job.index].number,
-      duration: job.duration,
       tabId: job.tabId
     } : null };
   })() : exclusive(async () => {
@@ -126,7 +124,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         const value = String(message.progress || '').slice(0, 90);
         if (job.progress !== value) { job.progress = value; await putJob(job); }
       } else {
-        if (message.playedSeconds < job.duration) return { ok: false, error: '必要な再生時間に達していません。' };
+        const { playedSeconds, position, mediaDuration } = message;
+        if (![playedSeconds, position, mediaDuration].every(Number.isFinite) || mediaDuration <= 0 ||
+            playedSeconds < Math.min(10, mediaDuration / 2) || position < mediaDuration - 1 ||
+            position > mediaDuration + 1) return { ok: false, error: '終盤の再生を確認できません。' };
         await advance(job);
       }
       return { ok: true };

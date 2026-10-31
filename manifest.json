@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "dAnimeCompletionHelper",
-  "description": "作品ページで話数範囲を指定し、各話を順に短時間再生します。非公式の拡張機能です。",
+  "description": "作品ページで話数範囲を指定し、各話の終盤を順に再生します。非公式の拡張機能です。",
   "version": "0.1.0",
   "minimum_chrome_version": "114",
   "permissions": ["tabs", "storage", "alarms"],
