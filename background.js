@@ -1,4 +1,4 @@
-/* Network-only experimental worker. Never opens or navigates a playback tab. */
+/* Network-only experimental worker. Never opens a playback tab. */
 'use strict';
 importScripts('history.js');
 const STORE = 'rangePlayerJob';
@@ -43,6 +43,12 @@ async function run(job, controller) {
     job.progress = '';
   }
   await putJob(job);
+  if (job.status === 'done') {
+    try {
+      const tab = await chrome.tabs.get(job.sourceTabId);
+      if (workIdFor({ tab }) === job.workId) await chrome.tabs.reload(job.sourceTabId);
+    } catch (_) { /* The source tab may have closed; history updates are already complete. */ }
+  }
 }
 async function createJob(message, sender) {
   const workId = workIdFor(sender);
@@ -61,7 +67,7 @@ async function createJob(message, sender) {
     items.push({ number: item.number, partId: item.partId });
     previous = item.number; seen.add(item.partId);
   }
-  const job = { workId, items, index: 0, status: 'running', progress: '開始しています', error: '' };
+  const job = { workId, sourceTabId: sender.tab.id, items, index: 0, status: 'running', progress: '開始しています', error: '' };
   await putJob(job);
   const controller = new AbortController();
   const current = { job, controller, promise: null };
