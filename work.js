@@ -8,7 +8,11 @@
   const entries = [];
   for (const a of document.querySelectorAll('.episodeContainer a[href*="cd_pc"]')) {
     const item = helpers.parseEpisodeLink(a.href);
-    if (item && item.partId.startsWith(workId)) entries.push(item);
+    if (item && item.partId.startsWith(workId)) {
+      item.label = [a.querySelector('.number')?.textContent.trim(), a.querySelector('.line2')?.textContent.trim()]
+        .filter(Boolean).join(' ');
+      entries.push(item);
+    }
   }
   const episodes = helpers.numberEpisodes(entries);
   if (!episodes.length) return;
@@ -27,8 +31,8 @@
   .panel { width:100%; max-width:320px; margin:4px 0 0 auto; padding:10px;
     text-align:left; background:#fafafa; border:1px solid #e5e5e5; border-radius:3px; }
   .line { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
-  label { flex:1; font-size:12px; font-weight:600; }
-  input { display:block; width:100%; padding:7px; margin-top:3px; border:1px solid #b8c4d1;
+  label { flex:1; min-width:0; font-size:12px; font-weight:600; }
+  select { display:block; width:100%; padding:7px; margin-top:3px; border:1px solid #b8c4d1;
     border-radius:7px; font:inherit; background:#fff; color:#222; }
   button { cursor:pointer; padding: 9px 12px; border:0; border-radius:8px; font:inherit; font-weight:600; }
   button:disabled { opacity:0.5; cursor:not-allowed; }
@@ -46,17 +50,22 @@
   const inner = document.createElement('div');
   const fields = document.createElement('div');
   fields.className = 'line';
-  function field(labelText, value, min, max) {
+  function field(labelText, value) {
     const label = document.createElement('label');
     label.textContent = labelText;
-    const input = document.createElement('input');
-    input.type = 'number'; input.min = String(min); input.max = String(max);
-    input.step = '1'; input.value = String(value);
-    label.appendChild(input);
-    return { label, input };
+    const select = document.createElement('select');
+    for (const item of episodes) {
+      const option = document.createElement('option');
+      option.value = String(item.number);
+      option.textContent = item.label || `${item.number}番目`;
+      select.appendChild(option);
+    }
+    select.value = String(value);
+    label.appendChild(select);
+    return { label, select };
   }
-  const from = field('開始話（一覧順）', episodes[0].number, 1, 9999);
-  const to = field('終了話（一覧順）', episodes[episodes.length - 1].number, 1, 9999);
+  const from = field('開始話', episodes[0].number);
+  const to = field('終了話', episodes[episodes.length - 1].number);
   fields.append(from.label, to.label);
   const status = document.createElement('div');
   status.className = 'status';
@@ -88,7 +97,7 @@
     shown = value;
     panel.hidden = !value;
     launcher.setAttribute('aria-expanded', String(value));
-    if (value) from.input.focus();
+    if (value) from.select.focus();
     else launcher.focus();
   }
   panel.hidden = true;
@@ -108,9 +117,10 @@
     const total = job.items.length;
     status.hidden = false;
     const num = job.items[job.index]?.number;
+    const episode = episodes.find(item => item.partId === job.items[job.index]?.partId);
     const done = Math.min(job.index, total);
     let line = `${done} / ${total} 話を視聴済み確認済み`;
-    if (job.status === 'running') line += `\n第${num}話：${job.progress || '読み込み中'}`;
+    if (job.status === 'running') line += `\n${episode?.label || `${num}番目`}：${job.progress || '読み込み中'}`;
     if (job.status === 'error') line += `\n停止：${job.error || '原因不明'}`;
     if (job.status === 'done') line += '\n全範囲の視聴済み登録を確認しました。';
     if (job.status === 'cancelled') line += '\n中断しました。';
@@ -118,24 +128,17 @@
     status.classList.toggle('error', job.status === 'error');
     const running = job.status === 'running';
     start.disabled = running; cancel.disabled = !running;
-    from.input.disabled = running; to.input.disabled = running;
+    from.select.disabled = running; to.select.disabled = running;
   }
   start.addEventListener('click', async () => {
     status.hidden = false;
-    const first = Number(from.input.value), last = Number(to.input.value);
+    const first = Number(from.select.value), last = Number(to.select.value);
     if (!Number.isInteger(first) || !Number.isInteger(last) || first > last ||
-        first < 1 || last > 9999) {
+        first < 1 || last > episodes.length) {
       status.textContent = '開始話と終了話を正しく指定してください。';
       return;
     }
-    const items = episodes.filter(item => item.number >= first && item.number <= last);
-    if (items.length !== last - first + 1) {
-      const missing = [];
-      const found = new Set(items.map(item => item.number));
-      for (let n = first; n <= last && missing.length < 8; n++) if (!found.has(n)) missing.push(n);
-      status.textContent = `範囲内に未検出の話があります：${missing.map(n => `第${n}話`).join('、')}`;
-      return;
-    }
+    const items = episodes.slice(first - 1, last);
     start.disabled = true;
     status.textContent = `${items.length}話の処理を開始しています。`;
     try {
