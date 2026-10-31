@@ -6,12 +6,11 @@
   const helpers = globalThis.DAnimeEpisodes;
   const workId = new URL(location.href).searchParams.get('workId');
   const entries = [];
-  for (const a of document.querySelectorAll('a[href*="cd_pc"]')) {
-    const src = a.textContent + ' ' + (a.querySelector('img')?.alt || '') + ' ' + (a.title || '');
-    const item = helpers.parseEpisodeLink(a.href, src);
-    if (item) entries.push(item);
+  for (const a of document.querySelectorAll('.episodeContainer a[href*="cd_pc"]')) {
+    const item = helpers.parseEpisodeLink(a.href);
+    if (item && item.partId.startsWith(workId)) entries.push(item);
   }
-  const episodes = helpers.dedupeAndSort(entries);
+  const episodes = helpers.numberEpisodes(entries);
   if (!episodes.length) return;
   const title = (document.title || '').split('|')[0].trim().slice(0, 120);
 
@@ -57,8 +56,8 @@
     label.appendChild(input);
     return { label, input };
   }
-  const from = field('開始話', episodes[0].number, 1, 9999);
-  const to = field('終了話', episodes[episodes.length - 1].number, 1, 9999);
+  const from = field('開始話（一覧順）', episodes[0].number, 1, 9999);
+  const to = field('終了話（一覧順）', episodes[episodes.length - 1].number, 1, 9999);
   fields.append(from.label, to.label);
   const status = document.createElement('div');
   status.className = 'status';
