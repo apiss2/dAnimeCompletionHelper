@@ -17,8 +17,7 @@
     if (!id || !/^\d{5,16}$/.test(id)) return null;
     const number = numberFromText(text);
     if (!Number.isSafeInteger(number) || number < 1 || number > 9999) return null;
-    // cd_pc links open the site's episode dialog; actual playback uses sc_d_pc.
-    return { number, partId: id, url: `https://animestore.docomo.ne.jp/animestore/sc_d_pc?partId=${id}` };
+    return { number, partId: id };
   }
 
   function dedupeAndSort(list) {

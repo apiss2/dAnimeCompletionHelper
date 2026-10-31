@@ -1,4 +1,4 @@
-/* Work detail page UI. Only the chosen episode URLs are sent to the worker. */
+/* Work detail page UI. Only chosen episode IDs are sent to the worker. */
 (() => {
   'use strict';
   if (!new URL(location.href).searchParams.get('workId')) return;
@@ -13,7 +13,6 @@
   }
   const episodes = helpers.dedupeAndSort(entries);
   if (!episodes.length) return;
-  const title = (document.title || '').split('|')[0].trim().slice(0, 120);
 
   const root = document.createElement('div');
   root.id = 'danime-completion-helper-root';
@@ -67,7 +66,7 @@
   const controls = document.createElement('div');
   controls.className = 'controls';
   const start = document.createElement('button');
-  start.className = 'primary'; start.textContent = '再生';
+  start.className = 'primary'; start.textContent = '登録';
   const cancel = document.createElement('button');
   cancel.className = 'stop'; cancel.textContent = '停止'; cancel.disabled = true;
   controls.append(start, cancel);
@@ -111,10 +110,10 @@
     status.hidden = false;
     const num = job.items[job.index]?.number;
     const done = Math.min(job.index, total);
-    let line = `${done} / ${total} 話を再生確認済み`;
+    let line = `${done} / ${total} 話を視聴済み確認済み`;
     if (job.status === 'running') line += `\n第${num}話：${job.progress || '読み込み中'}`;
     if (job.status === 'error') line += `\n停止：${job.error || '原因不明'}`;
-    if (job.status === 'done') line += '\n全範囲の再生確認が終了しました。';
+    if (job.status === 'done') line += '\n全範囲の視聴済み登録を確認しました。';
     if (job.status === 'cancelled') line += '\n中断しました。';
     status.textContent = line;
     status.classList.toggle('error', job.status === 'error');
@@ -141,13 +140,17 @@
     start.disabled = true;
     status.textContent = `${items.length}話の処理を開始しています。`;
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'START_JOB', workId, title, items });
+      const response = await chrome.runtime.sendMessage({ type: 'START_JOB', workId, items });
       if (!response?.ok) throw new Error(response?.error || '開始できませんでした。');
       showJob(response.job);
     } catch (e) { start.disabled = false; status.textContent = e.message; }
   });
   cancel.addEventListener('click', async () => {
-    await chrome.runtime.sendMessage({ type: 'CANCEL_JOB' });
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'CANCEL_JOB' });
+      if (!response?.ok) throw new Error(response?.error || '停止できませんでした。');
+      showJob(response.job);
+    } catch (e) { status.hidden = false; status.textContent = e.message; }
   });
   chrome.runtime.sendMessage({ type: 'GET_STATUS' }).then(r => showJob(r?.job)).catch(() => {});
 })();

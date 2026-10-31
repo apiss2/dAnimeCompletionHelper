@@ -10,7 +10,7 @@ test('話数文字列を解析する', () => {
 });
 test('dアニメストアのエピソードリンクのみを許可する', () => {
   assert.deepEqual(parseEpisodeLink('https://animestore.docomo.ne.jp/animestore/cd_pc?partId=28572013', '第13話'), {
-    number: 13, partId: '28572013', url: 'https://animestore.docomo.ne.jp/animestore/sc_d_pc?partId=28572013'
+    number: 13, partId: '28572013'
   });
   assert.equal(parseEpisodeLink('https://example.com/animestore/cd_pc?partId=28572013','第13話'), null);
   assert.equal(parseEpisodeLink('https://animestore.docomo.ne.jp/animestore/ci_pc?partId=28572013','第13話'), null);
