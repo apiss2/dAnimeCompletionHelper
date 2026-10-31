@@ -1,25 +1,31 @@
 {
   "manifest_version": 3,
   "name": "dAnimeCompletionHelper",
-  "description": "作品ページで話数範囲を指定し、各話の終盤を順に再生します。非公式の拡張機能です。",
+  "description": "作品ページで指定した話数の視聴履歴を通信で更新・照会します。実再生は行いません。",
   "version": "0.1.0",
   "minimum_chrome_version": "114",
-  "permissions": ["tabs", "storage", "alarms"],
-  "host_permissions": ["https://*.animestore.docomo.ne.jp/*"],
-  "action": { "default_title": "dAnimeCompletionHelper" },
-  "background": { "service_worker": "background.js" },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.animestore.docomo.ne.jp/*"
+  ],
+  "action": {
+    "default_title": "dAnimeCompletionHelper"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://animestore.docomo.ne.jp/animestore/ci_pc*"],
-      "js": ["episode-list.js", "work.js"],
+      "matches": [
+        "https://animestore.docomo.ne.jp/animestore/ci_pc*"
+      ],
+      "js": [
+        "episode-list.js",
+        "work.js"
+      ],
       "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://*.animestore.docomo.ne.jp/*"],
-      "js": ["media.js"],
-      "run_at": "document_idle",
-      "all_frames": true,
-      "match_about_blank": true
     }
   ]
 }
